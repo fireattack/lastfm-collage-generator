@@ -1,16 +1,8 @@
 import requests
 from PIL import Image, ImageDraw, ImageFont
-from io import BytesIO
-
 from util import download, requests_retry_session
 
-# Constants
-METHOD_ALBUMS = 1
-METHOD_ARTISTS = 2
-
 API_KEY = 'b7cad0612089bbbfecfc08acc52087f1'  # Replace with your API key
-SIDE_LENGTHS = [34, 64, 174, 300]
-
 
 def make_square(image, size):
     # Calculate aspect ratio
@@ -38,32 +30,17 @@ def make_square(image, size):
 
     return image
 
-def get_info(method, username, period, rows, cols):
+def get_info(username, period, rows, cols):
     limit = rows * cols
-    url = None
+    url = f"http://ws.audioscrobbler.com/2.0/?method=user.gettopalbums&user={username}&period={period}&api_key={API_KEY}&limit={limit}&format=json"
 
-    # Construct the URL
-    if method == METHOD_ALBUMS:
-        url = f"http://ws.audioscrobbler.com/2.0/?method=user.gettopalbums&user={username}&period={period}&api_key={API_KEY}&limit={limit}&format=json"
-    elif method == METHOD_ARTISTS:
-        url = f"http://ws.audioscrobbler.com/2.0/?method=user.gettopartists&user={username}&period={period}&api_key={API_KEY}&limit={limit}&format=json"
-
-    # Make the API call
     response = requests_retry_session().get(url)
     data = response.json()
 
-    # Extract the image links and titles
-    if method == METHOD_ALBUMS:
-        links = [album['image'][-1]['#text'] for album in data['topalbums']['album']]
-        titles = [f"{album['name']}\n{album['artist']['name']}" for album in data['topalbums']['album']]
-    else:
-        links = [artist['image'][-1]['#text'] for artist in data['topartists']['artist']]
-        titles = [artist['name'] for artist in data['topartists']['artist']]
+    links = [album['image'][-1]['#text'] for album in data['topalbums']['album']]
+    titles = [f"{album['name']}\n{album['artist']['name']}" for album in data['topalbums']['album']]
 
     return links, titles
-
-
-
 
 def create_collage(links, titles, side_length, rows, cols, show_name):
     # side_length = SIDE_LENGTHS[size]
@@ -106,8 +83,7 @@ period = '7day'    # Replace with a period # overall | 7day | 1month | 3month | 
 size = 3         # Replace with a size
 rows = 3          # Replace with the number of rows
 cols = 3          # Replace with the number of cols
-method = METHOD_ARTISTS  # Replace with a method
 show_name = True  # Replace with a boolean indicating whether to show names
 
-links, titles = get_info(method, username, period, rows, cols)
+links, titles = get_info(username, period, rows, cols)
 create_collage(links, titles, 500, rows, cols, show_name)

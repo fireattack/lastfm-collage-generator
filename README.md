@@ -1,12 +1,10 @@
-Last.fm Top Albums Collage Generator (deprecated)
+Last.fm Top Albums Collage Generator
 ====================================
 
-Web app that generates a collage of a user's top albums.
+"Forked" from [original JS version](https://github.com/awhite/lastfm-collage-generator), but rewrote in Python.
 
-[Website](https://www.alexpwhite.me/lastfm)
+Removed `gettopartists` for now because last.fm limits their API so you cannot get images of aritsts anymore for years. It looks very ugly and I don't really use it anyway.
 
-## New version
 
-### [Lastcollage](https://lastcollage.io) | [github](https://github.com/awhite/lastcollage)
 
 
