@@ -1,5 +1,10 @@
+import re
+from pathlib import Path
+
+import tweepy
 from PIL import Image, ImageDraw, ImageFont
-from util import download, requests_retry_session
+from requests_oauthlib import OAuth1
+from util import download, dump_json, requests_retry_session
 
 API_KEY = 'b7cad0612089bbbfecfc08acc52087f1'
 
@@ -29,8 +34,7 @@ def make_square(image, size):
 
     return image
 
-def get_info(username, period, rows, cols):
-    limit = rows * cols
+def get_info(username, period, limit):
     url = f"http://ws.audioscrobbler.com/2.0/?method=user.gettopalbums&user={username}&period={period}&api_key={API_KEY}&limit={limit}&format=json"
 
     response = requests_retry_session().get(url)
@@ -83,13 +87,46 @@ def create_collage(data, side_length, rows, cols, show_name, output='collage.jpg
 
     collage.save(output, format='JPEG', quality=94, optimize=True, subsampling=0)
 
-# Use the functions
-username = 'fireattack'  # Replace with a username
-period = '7day'    # Replace with a period # overall | 7day | 1month | 3month | 6month | 12month
-rows = 3          # Replace with the number of rows
-cols = 3          # Replace with the number of cols
-show_name = True  # Replace with a boolean indicating whether to show names
+def load_keys():
+    # format: consumer_key, consumer_secret, access_token, access_token_secret, each on a line
+    auth_file = Path('auth_twitter.txt')
+    with auth_file.open('r') as f:
+        return f.read().splitlines()
 
-data = get_info(username, period, rows, cols)
-for size in [500, 800, 1000, 1200]:
-    create_collage(data, size, rows, cols, show_name, output=f'collage_{size}.jpg')
+def tweet(text, file):
+    keys = load_keys()
+    tweepy_auth = tweepy.OAuth1UserHandler(
+        *keys
+    )
+    tweepy_api = tweepy.API(tweepy_auth)
+    post = tweepy_api.simple_upload(file)
+    text = str(post)
+    print(f'[DEBUG] twitter media upload response: {text}')
+    media_id = re.search(r"media_id=(.+?),", text)[1]
+    print(f'[DEBUG] media_id: {media_id}')
+    payload = {"media": {"media_ids": ["{}".format(media_id)]}}
+    payload['text'] = text
+    dump_json(payload, 'payload.json')
+
+    r = requests_retry_session().post("https://api.twitter.com/2/tweets", json=payload, auth=OAuth1(*keys))
+    print(f'[DEBUG] twitter tweet status code: {r.status_code}')
+    print(f'[DEBUG] twitter tweet response: {r.text}')
+
+def main():
+    username = 'fireattack'
+    period = '7day' # 7day | 1month | 3month | 6month | 12month | overall
+    rows = 3
+    cols = 3
+    show_name = True
+    size = 500
+
+    data = get_info(username, period, limit=rows*cols)
+
+    output = f'collage_{size}.jpg'
+    create_collage(data, size, rows, cols, show_name, output=output)
+
+    text = f'My fav albums this week https://last.fm/user/{username}'
+    tweet(text, output)
+
+if __name__ == '__main__':
+    main()
