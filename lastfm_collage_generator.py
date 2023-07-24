@@ -1,8 +1,7 @@
-import requests
 from PIL import Image, ImageDraw, ImageFont
 from util import download, requests_retry_session
 
-API_KEY = 'b7cad0612089bbbfecfc08acc52087f1'  # Replace with your API key
+API_KEY = 'b7cad0612089bbbfecfc08acc52087f1'
 
 def make_square(image, size):
     # Calculate aspect ratio
@@ -37,12 +36,9 @@ def get_info(username, period, rows, cols):
     response = requests_retry_session().get(url)
     data = response.json()
 
-    links = [album['image'][-1]['#text'] for album in data['topalbums']['album']]
-    titles = [f"{album['name']}\n{album['artist']['name']}" for album in data['topalbums']['album']]
+    return data['topalbums']['album']
 
-    return links, titles
-
-def create_collage(links, titles, side_length, rows, cols, show_name):
+def create_collage(data, side_length, rows, cols, show_name, output='collage.jpg'):
     # side_length = SIDE_LENGTHS[size]
     collage_width = side_length * cols
     collage_height = side_length * rows
@@ -50,40 +46,50 @@ def create_collage(links, titles, side_length, rows, cols, show_name):
     collage = Image.new('RGB', (collage_width, collage_height))
     draw = ImageDraw.Draw(collage)
 
+    max_fontsize = side_length // 15
+    line_height = max_fontsize * 1.2
+    stroke_width = max(max_fontsize//25, 1)
+    print(f'[DEBUG] max_fontsize: {max_fontsize}, stroke_width: {stroke_width}')
+
     for i in range(rows):
         for j in range(cols):
             index = i * cols + j
-            if links[index]:
-                image_url = links[index].replace('300x300/', '')
-                download(image_url, save_path='img_cache', dupe='skip')
-                img = Image.open('img_cache/' + image_url.split('/')[-1])
-                # resize image to fit the side length
-                img = make_square(img, side_length)
-                collage.paste(img, (j * side_length, i * side_length))
+            if album := data[index]:
+                # download cover if exists
+                if album['image'][-1]['#text']:
+                    image_url = album['image'][-1]['#text'].replace('300x300/', '')
+                    download(image_url, save_path='img_cache', dupe='skip', verbose=0)
+                    img = Image.open('img_cache/' + image_url.split('/')[-1])
+                    # resize image to fit the side length
+                    img = make_square(img, side_length)
+                    collage.paste(img, (j * side_length, i * side_length))
 
-            if show_name and titles[index]:
-                print(f'[DEBUG] processing {titles[index]}')
-                textX = j * side_length + side_length // 2
-                textY = i * side_length + side_length // 2
+                if show_name:
+                    # print(f'[DEBUG] adding text {album_name}, {artist_name}')
+                    album_name = album['name']
+                    artist_name = album['artist']['name']
 
-                lines = [(idx, text, int(min((side_length * 1.3) // len(text),side_length // 15))) for idx, text in enumerate(titles[index].split('\n'))]
-                line_height = max([line[2] for line in lines]) + 20
+                    textX = j * side_length + side_length // 2
+                    textY = i * side_length + side_length // 2
 
-                for idx, text, fontsize in lines:
-                    print(f'[DEBUG] text: {text}, size: {fontsize}')
-                    font = ImageFont.truetype('D:\\SourceHanSans-Regular.otf', fontsize)
-                    textY_shift = textY - line_height // 2 + line_height * idx
-                    draw.text((textX, textY_shift), text, fill="white", font=font, stroke_fill='black', stroke_width=2, anchor="mm", align="center")
+                    for idx, text in enumerate([album_name, artist_name]):
+                        local_max_fontsize = max_fontsize if idx == 0 else round(max_fontsize / 1.2) # artist line is smaller
+                        fontsize = (min(int((side_length * 1.2) // len(text)), local_max_fontsize))
+                        if fontsize != local_max_fontsize:
+                            print(f'[DEBUG] long text: {text}, fontsize: {fontsize}')
+                        font = ImageFont.truetype('SourceHanSans-Regular.otf', fontsize)
+                        textY_shift = textY - line_height // 2 + line_height * idx
+                        draw.text((textX, textY_shift), text, fill="white", font=font, stroke_fill='black', stroke_width=stroke_width, anchor="mm", align="center")
 
-    collage.save('collage.png')
+    collage.save(output, format='JPEG', quality=94, optimize=True, subsampling=0)
 
 # Use the functions
 username = 'fireattack'  # Replace with a username
 period = '7day'    # Replace with a period # overall | 7day | 1month | 3month | 6month | 12month
-size = 3         # Replace with a size
 rows = 3          # Replace with the number of rows
 cols = 3          # Replace with the number of cols
 show_name = True  # Replace with a boolean indicating whether to show names
 
-links, titles = get_info(username, period, rows, cols)
-create_collage(links, titles, 500, rows, cols, show_name)
+data = get_info(username, period, rows, cols)
+for size in [500, 800, 1000, 1200]:
+    create_collage(data, size, rows, cols, show_name, output=f'collage_{size}.jpg')

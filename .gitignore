@@ -4,5 +4,5 @@ node_modules/
 /img_cache
 /.vscode
 /test.py
-/collage.png
+/collage*
 /data.json
