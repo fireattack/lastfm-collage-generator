@@ -15,6 +15,9 @@ from urllib3.util.retry import Retry
 from urllib3.util.ssl_ import create_urllib3_context
 
 
+API_KEY = 'b7cad0612089bbbfecfc08acc52087f1'
+
+
 class AdapterFix(HTTPAdapter):
     def __init__(self, **kwargs):
         self.ssl_context = create_urllib3_context()
@@ -48,15 +51,6 @@ def requests_retry_session(
     return session
 
 
-# write a simple download function
-def download(url, f):
-    with requests_retry_session().get(url, stream=True) as r:
-        r.raise_for_status()
-        with open(f, 'wb') as f:
-            for chunk in r.iter_content(chunk_size=8192):
-                f.write(chunk)
-
-
 def dump_json(mydict, filename):
     filename = Path(filename)
     if filename.suffix.lower() != '.json':
@@ -73,7 +67,18 @@ def load_json(filename, encoding='utf-8'):
     return data
 
 
-API_KEY = 'b7cad0612089bbbfecfc08acc52087f1'
+def download(url, save_dir='.'):
+    f = Path(save_dir) / url.split('/')[-1]
+    if f.exists():
+        return
+    if not Path(save_dir).exists():
+        Path(save_dir).mkdir(parents=True, exist_ok=True)
+    print(f'[DEBUG] downloading {url} to {f}')
+    with requests_retry_session().get(url, stream=True) as r:
+        r.raise_for_status()
+        with f.open('wb') as fio:
+            for chunk in r.iter_content(chunk_size=8192):
+                fio.write(chunk)
 
 
 def make_square(image, size):
@@ -154,7 +159,7 @@ def create_collage(data, side_length, rows, cols, show_name, output, show=False)
                 # download cover if exists
                 if album['image'][-1]['#text']:
                     image_url = album['image'][-1]['#text'].replace('300x300/', '')
-                    download(image_url, save_path='img_cache', dupe='skip', verbose=0)
+                    download(image_url, save_dir='img_cache')
                     img = Image.open('img_cache/' + image_url.split('/')[-1])
                     # resize image to fit the side length
                     img = make_square(img, side_length)
