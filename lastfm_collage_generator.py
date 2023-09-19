@@ -1,6 +1,5 @@
 import argparse
 import json
-import ssl
 import webbrowser
 from pathlib import Path
 
@@ -12,25 +11,9 @@ from requests_oauthlib import OAuth1
 from rich.console import Console
 from rich.table import Table
 from urllib3.util.retry import Retry
-from urllib3.util.ssl_ import create_urllib3_context
 
 
 API_KEY = 'b7cad0612089bbbfecfc08acc52087f1'
-
-
-class AdapterFix(HTTPAdapter):
-    def __init__(self, **kwargs):
-        self.ssl_context = create_urllib3_context()
-        self.ssl_context.options &= ~ssl.OP_NO_TICKET
-        super().__init__(**kwargs)
-
-    def init_poolmanager(self, *args, **kwargs):
-        kwargs["ssl_context"] = self.ssl_context
-        super().init_poolmanager(*args, **kwargs)
-
-    def proxy_manager_for(self, *args, **kwargs):
-        kwargs["ssl_context"] = self.ssl_context
-        return super().proxy_manager_for(*args, **kwargs)
 
 
 def requests_retry_session(
@@ -45,7 +28,7 @@ def requests_retry_session(
         backoff_factor=backoff_factor,
         status_forcelist=status_forcelist,
     )
-    adapter = AdapterFix(max_retries=retry)
+    adapter = HTTPAdapter(max_retries=retry)
     session.mount('http://', adapter)
     session.mount('https://', adapter)
     return session
@@ -110,10 +93,8 @@ def make_square(image, size):
 
 def get_info(username, period, limit):
     url = f"http://ws.audioscrobbler.com/2.0/?method=user.gettopalbums&user={username}&period={period}&api_key={API_KEY}&limit={limit}&format=json"
-
     response = requests_retry_session().get(url)
     data = response.json()
-
     return data['topalbums']['album']
 
 
@@ -125,7 +106,6 @@ def get_font_size(text, side_length):
             font_size -= 1
         else:
             break
-
     return font_size
 
 
