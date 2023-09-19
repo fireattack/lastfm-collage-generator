@@ -221,19 +221,23 @@ def tweet(text, file):
     r = requests_retry_session().post("https://api.twitter.com/2/tweets", json=payload, auth=OAuth1(*keys))
     print(f'[DEBUG] twitter tweet status code: {r.status_code}')
     print(f'[DEBUG] twitter tweet response: {r.text}')
+    res = r.json()
+    tweet_id = res['data']['id']
+    webbrowser.open(f'https://twitter.com/i/web/status/{tweet_id}')
 
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('action', default='fetch', choices=['fetch', 'collage', 'tweet', 'all'], nargs='?')
-    parser.add_argument('--username', type=str, default='fireattack')
-    parser.add_argument('--period', type=str, default='7day', choices=['7day', '1month', '3month', '6month', '12month', 'overall'])
-    parser.add_argument('--rows', type=int, default=3)
-    parser.add_argument('--cols', type=int, default=3)
-    parser.add_argument('--show_name', action='store_true', default=True)
-    parser.add_argument('--size', type=int, default=500)
-
+    parser.add_argument('action', default='fetch', choices=['fetch', 'collage', 'tweet', 'all'], nargs='?', help='Specify the action to perform: fetch data, create collage, tweet, or all combined.')
+    parser.add_argument('--username', '-u', type=str, default='fireattack', help='Username of the LastFM user.')
+    parser.add_argument('--period', type=str, default='7day', choices=['7day', '1month', '3month', '6month', '12month', 'overall'], help='Time period for which to fetch the LastFM data.')
+    parser.add_argument('--rows', type=int, default=3, help='Number of rows in the collage.')
+    parser.add_argument('--cols', type=int, default=3, help='Number of columns in the collage.')
+    parser.add_argument('--show-name', action='store_true', default=True, dest='show_name', help='Display the name on the collage.')
+    parser.add_argument('--no-show-name', action='store_false', dest='show_name', help='Do not display the name on the collage.')
+    parser.add_argument('--size', type=int, default=500, help='Size of each image in the collage.')
     args = parser.parse_args()
+
     output = f'collage_{args.size}.jpg'
 
     if args.action in ['fetch', 'all']:
@@ -241,10 +245,10 @@ if __name__ == '__main__':
         dump_json(data, 'data.json')
         # print info
         table = Table(show_header=True, header_style="bold magenta")
-        table.add_column("Rank", style="dim", width=5)
+        table.add_column("Rank", style="dim")
         table.add_column("Album")
         table.add_column("Artist")
-        table.add_column("Playcount", justify="right")
+        table.add_column("Play count", justify="right")
         table.add_column("Has cover")
         for i, album in enumerate(data):
             if album['image'][-1]['#text']:

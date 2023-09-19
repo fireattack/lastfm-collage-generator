@@ -8,3 +8,4 @@ node_modules/
 /data.json
 /auth*
 /payload.json
+/__pycache__
