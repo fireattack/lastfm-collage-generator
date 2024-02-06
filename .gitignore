@@ -9,3 +9,4 @@ node_modules/
 /auth*
 /payload.json
 /__pycache__
+/run.bat

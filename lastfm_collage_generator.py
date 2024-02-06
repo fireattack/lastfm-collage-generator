@@ -206,10 +206,34 @@ def tweet(text, file):
     webbrowser.open(f'https://twitter.com/i/web/status/{tweet_id}')
 
 
+def print_data(data):
+    # print info
+    table = Table(show_header=True, header_style="bold magenta")
+    table.add_column("Rank", style="dim")
+    table.add_column("Album")
+    table.add_column("Artist")
+    table.add_column("Play count", justify="right")
+    table.add_column("Has cover")
+    for i, album in enumerate(data):
+        if album['image'][-1]['#text']:
+            has_cover = '✅'
+        else:
+            has_cover = '❌'
+            webbrowser.open(album['url'])
+        table.add_row(str(i+1), album['name'], album['artist']['name'], str(album['playcount']), has_cover)
+    console = Console()
+    console.print(table)
+
+
+def fetch_dump_print():
+    data = get_info(args.username, args.period, limit=args.rows*args.cols+5)  # get a little bit more
+    dump_json(data, 'data.json')
+    print_data(data)
+
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
-    parser.add_argument('action', default='fetch', choices=['fetch', 'collage', 'tweet', 'all'], nargs='?', help='Specify the action to perform: fetch data, create collage, tweet, or all combined.')
-    parser.add_argument('--username', '-u', type=str, default='fireattack', help='Username of the LastFM user.')
+    parser.add_argument('action', default=None, choices=['fetch', 'collage', 'tweet', 'all'], nargs='?', help='Specify the action to perform: fetch data, create collage, tweet, or all combined. If not given, it will be interactive.')
+    parser.add_argument('--username', '-u', type=str, help='Username of the LastFM user.')
     parser.add_argument('--period', type=str, default='7day', choices=['7day', '1month', '3month', '6month', '12month', 'overall'], help='Time period for which to fetch the LastFM data.')
     parser.add_argument('--rows', type=int, default=3, help='Number of rows in the collage.')
     parser.add_argument('--cols', type=int, default=3, help='Number of columns in the collage.')
@@ -220,32 +244,38 @@ if __name__ == '__main__':
 
     output = f'collage_{args.size}.jpg'
 
-    if args.action in ['fetch', 'all']:
-        data = get_info(args.username, args.period, limit=args.rows*args.cols+3)  # get a little bit more
-        dump_json(data, 'data.json')
-        # print info
-        table = Table(show_header=True, header_style="bold magenta")
-        table.add_column("Rank", style="dim")
-        table.add_column("Album")
-        table.add_column("Artist")
-        table.add_column("Play count", justify="right")
-        table.add_column("Has cover")
-        for i, album in enumerate(data):
-            if album['image'][-1]['#text']:
-                has_cover = '✅'
-            else:
-                has_cover = '❌'
-                webbrowser.open(album['url'])
-            table.add_row(str(i+1), album['name'], album['artist']['name'], str(album['playcount']), has_cover)
-        console = Console()
-        console.print(table)
+    if args.action is None:
+        action = 'fetch'
+    else:
+        action = args.action
 
-    if args.action in ['collage', 'all']:
+    if action in ['fetch', 'all']:
+        fetch_dump_print()
+
+    if args.action is None:
+        print('Data fetched and saved to data.json. Please make modifications if needed.')
+        while True: # interactive
+            user_input = input('[R] to re-fetch remote data, [P] to re-print local data, [Enter] to continue generating collage: ')
+            if user_input.lower() == 'r':
+                fetch_dump_print()
+            elif user_input.lower() == 'p':
+                data = load_json('data.json')
+                print_data(data)
+            elif user_input == '':
+                break
+        action = 'collage'
+
+    if action in ['collage', 'all']:
         data = load_json('data.json')
-        show = True if args.action == 'collage' else False  # show only if action is collage
+        show = True if action == 'collage' else False  # show only if action is collage
         create_collage(data, args.size, args.rows, args.cols, args.show_name, output, show)
 
-    if args.action in ['tweet', 'all']:
+    if args.action is None:
+        print('Collage generated and saved to collage.jpg.')
+        input('Press enter to tweet:')
+        action = 'tweet'
+
+    if action in ['tweet', 'all']:
         text = f'My fav albums this week https://last.fm/user/{args.username}'
         assert Path(output).exists(), f'Collage {output} not found'
         tweet(text, output)
