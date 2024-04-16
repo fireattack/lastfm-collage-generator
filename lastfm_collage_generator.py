@@ -119,7 +119,7 @@ def add_text(image, draw, x, y, text, font, stroke_width):
     draw.text((x, y), text, fill="white", font=font, stroke_fill='black', stroke_width=stroke_width, anchor="mm", align="center")
 
 
-def create_collage(data, side_length, rows, cols, show_name, output, show=False):
+def create_collage(data, side_length, rows, cols, output, font_path, show_name, show=False):
     # side_length = SIDE_LENGTHS[size]
     collage_width = side_length * cols
     collage_height = side_length * rows
@@ -158,7 +158,7 @@ def create_collage(data, side_length, rows, cols, show_name, output, show=False)
 
                         fontsize = local_max_fontsize
                         while True:
-                            font = ImageFont.truetype('SourceHanSans-Regular.otf', fontsize)
+                            font = ImageFont.truetype(font_path, fontsize)
                             length = draw.textlength(text, font=font)
                             if length > side_length * 0.95:  # leave some margin
                                 fontsize -= 1
@@ -181,10 +181,18 @@ def tweet(text, file):
     def load_keys():
         # format: consumer_key, consumer_secret, access_token, access_token_secret, each on a line
         auth_file = Path('auth_twitter.txt')
+        if not auth_file.exists():
+            raise FileNotFoundError(f'Auth file {auth_file} not found')
+
         with auth_file.open('r') as f:
             return f.read().splitlines()
 
-    keys = load_keys()
+    try:
+        keys = load_keys()
+    except Exception as e:
+        print('Cannot load keys:', e)
+        return
+
     tweepy_auth = tweepy.OAuth1UserHandler(*keys)
     tweepy_api = tweepy.API(tweepy_auth)
 
@@ -235,12 +243,13 @@ if __name__ == '__main__':
     parser = argparse.ArgumentParser()
     parser.add_argument('action', default=None, choices=['fetch', 'collage', 'tweet', 'all'], nargs='?', help='Specify the action to perform: fetch data, create collage, tweet, or all combined. If not given, it will be interactive.')
     parser.add_argument('--username', '-u', type=str, help='Username of the LastFM user.')
-    parser.add_argument('--period', type=str, default='7day', choices=['7day', '1month', '3month', '6month', '12month', 'overall'], help='Time period for which to fetch the LastFM data.')
-    parser.add_argument('--rows', type=int, default=3, help='Number of rows in the collage.')
-    parser.add_argument('--cols', type=int, default=3, help='Number of columns in the collage.')
-    parser.add_argument('--show-name', action='store_true', default=True, dest='show_name', help='Display the name on the collage.')
+    parser.add_argument('--period', type=str, default='7day', choices=['7day', '1month', '3month', '6month', '12month', 'overall'], help='Time period for which to fetch the LastFM data [default: 7day].')
+    parser.add_argument('--rows', type=int, default=3, help='Number of rows in the collage [default: 3].')
+    parser.add_argument('--cols', type=int, default=3, help='Number of columns in the collage [default: 3].')
+    parser.add_argument('--show-name', action='store_true', default=True, dest='show_name', help='Display the name on the collage [default: True].')
     parser.add_argument('--no-show-name', action='store_false', dest='show_name', help='Do not display the name on the collage.')
-    parser.add_argument('--size', type=int, default=500, help='Size of each image in the collage.')
+    parser.add_argument('--size', type=int, default=500, help='Size of each image in the collage [default: 500].')
+    parser.add_argument('--font', type=str, default='SourceHanSans-Regular.otf', help='Font file to use for text [default: SourceHanSans-Regular.otf].')
     args = parser.parse_args()
 
     output = f'collage_{args.size}.jpg'
@@ -274,8 +283,9 @@ if __name__ == '__main__':
     if action in ['collage', 'all']:
         if not data:
             data = load_json('data.json')
-        show = True if action == 'collage' else False  # show only if action is collage
-        create_collage(data, args.size, args.rows, args.cols, args.show_name, output, show)
+        # show the image if the action is not "all"
+        show = True if action == 'collage' else False
+        create_collage(data, args.size, args.rows, args.cols, output, font_path=args.font, show_name=args.show_name, show=show)
 
     if args.action is None:
         print('Collage generated and saved to collage.jpg.')
