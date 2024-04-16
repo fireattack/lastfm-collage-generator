@@ -229,6 +229,7 @@ def fetch_dump_print():
     data = get_info(args.username, args.period, limit=args.rows*args.cols+5)  # get a little bit more
     dump_json(data, 'data.json')
     print_data(data)
+    return data
 
 if __name__ == '__main__':
     parser = argparse.ArgumentParser()
@@ -243,6 +244,7 @@ if __name__ == '__main__':
     args = parser.parse_args()
 
     output = f'collage_{args.size}.jpg'
+    data = None
 
     if args.action is None:
         action = 'fetch'
@@ -250,29 +252,34 @@ if __name__ == '__main__':
         action = args.action
 
     if action in ['fetch', 'all']:
-        fetch_dump_print()
+        data = fetch_dump_print()
 
     if args.action is None:
         print('Data fetched and saved to data.json. Please make modifications if needed.')
         while True: # interactive
-            user_input = input('[R] to re-fetch remote data, [P] to re-print local data, [Enter] to continue generating collage: ')
+            user_input = input('[R] to re-fetch remote data, [P] to re-print local data, [I] to ignore data without images, [Enter] to continue generating collage: ')
             if user_input.lower() == 'r':
-                fetch_dump_print()
+                data = fetch_dump_print()
             elif user_input.lower() == 'p':
                 data = load_json('data.json')
+                print_data(data)
+            elif user_input.lower() == 'i':
+                data = [album for album in data if album['image'][-1]['#text']]
+                assert len(data) >= args.rows * args.cols, f'Not enough data with images: {len(data)}'
                 print_data(data)
             elif user_input == '':
                 break
         action = 'collage'
 
     if action in ['collage', 'all']:
-        data = load_json('data.json')
+        if not data:
+            data = load_json('data.json')
         show = True if action == 'collage' else False  # show only if action is collage
         create_collage(data, args.size, args.rows, args.cols, args.show_name, output, show)
 
     if args.action is None:
         print('Collage generated and saved to collage.jpg.')
-        input('Press enter to tweet:')
+        input('Press enter to tweet: ')
         action = 'tweet'
 
     if action in ['tweet', 'all']:

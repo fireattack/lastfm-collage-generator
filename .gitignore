@@ -10,3 +10,4 @@ node_modules/
 /payload.json
 /__pycache__
 /run.bat
+/tweet.py
