@@ -3,8 +3,6 @@ Last.fm Top Albums Collage Generator
 
 Inspired by [original JS version](https://github.com/awhite/lastfm-collage-generator), but rewrote in Python.
 
-Note: it by default uses an open-source font called Source Han Sans, which is included in the repo. If you want to use another font, you can change the `FONT_PATH` variable in the script.
-
 Usage
 -----
 
@@ -29,6 +27,8 @@ options:
   --size SIZE           Size of each image in the collage [default: 500].
   --font FONT           Font file to use for text [default: SourceHanSans-Regular.otf].
 ```
+
+Note: it by default uses an open-source font called Source Han Sans for better CJK support, which is included in the repo for your convenience. If you want to use another font, you can change it using `--font path/to/fontfile`.
 
 Interactive mode
 ----------------
